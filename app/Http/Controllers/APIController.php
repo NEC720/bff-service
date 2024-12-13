@@ -10,7 +10,7 @@ class APIController extends Controller
     //
     public function proxy(Request $request, $service, $path)
     {
-        $routeException = ['login', 'register', 'redirect/google', 'callback/google', 'redirect/github', 'callback/github', 'redirect/linkedin', 'callback/linkedin', 'email/verify/{id}/{hash}']; // email/verify/{id}/{hash} NE MARCHE PAS !
+        $routeException = ['login', 'register', 'supervisors', 'redirect/google', 'callback/google', 'redirect/github', 'callback/github', 'redirect/linkedin', 'callback/linkedin', 'email/verify/{id}/{hash}']; // email/verify/{id}/{hash} NE MARCHE PAS !
         if (!in_array($path, $routeException)) {
             $authHeader = $request->header('Authorization');
             if ($authHeader) {
@@ -81,6 +81,7 @@ class APIController extends Controller
         $services = [
             'auth' => 'http://localhost:8001/api',
             'api' => 'http://localhost:8002/api',
+            'cyber' => 'http://localhost:8003/api',
         ];
 
         return $services[$service];

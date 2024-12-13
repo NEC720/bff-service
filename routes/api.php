@@ -129,4 +129,18 @@ Route::get('auth/email/verify/{id}/{hash}');
 Route::get('api/dashboard');
 
 Route::get('api/locations');
+Route::get('cyber/cybers');
+
+Route::get('api/users/{id}');
+Route::get('api/supervisors');
+
+// Route::post('/cyber/sendCyberAvis');
+// Route::post('/cyber/allcybersfavorites');
+// Route::post('/cyber/addfavorite');
+// Route::post('/cyber/removefavorite');
+// Route::middleware('throttle:100,1')->post('/cyber/checkfavorites');
+// Route::post('/cyber/print-requests');
+
+Route::put('auth/users/{id}');
+Route::put('auth/user/update');
 
