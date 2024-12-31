@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class APIController extends Controller
 {
@@ -28,10 +29,47 @@ class APIController extends Controller
             $client = new Client();
             $url = $this->resolveServiceUrl($service) . '/' . $path;
 
-            $response = $client->request($request->method(), $url, [
-                'headers' => $request->headers->all(),
-                'json' => $request->all(),
-            ]);
+            $pathsForRequestWithFiles = ['print-requests'];
+
+            if (in_array($path, $pathsForRequestWithFiles)) {
+                Log::info('Request files:', $request->allFiles());
+                Log::info('Request all:', $request->all());
+                // Supprimer content-type header s'il existe
+                $headers = collect($request->headers->all())
+                    ->filter(function ($value, $key) {
+                        return strtolower($key) !== 'content-type';
+                    })->all();
+
+                $response = $client->request($request->method(), $url, [
+                    'headers' => $headers,
+                    'multipart' => collect($request->allFiles())->map(function ($file, $key) {
+                        Log::info("Processing file: " . $key, ['filename' => $file->getClientOriginalName()]);
+                        return [
+                            'name' => $key,
+                            'contents' => fopen($file->getPathname(), 'r'),
+                            'filename' => $file->getClientOriginalName()
+                        ];
+                    })->merge(
+                        collect($request->except(array_keys($request->allFiles())))->map(function ($value, $key) {
+                            Log::info("Processing field: " . $key, ['value' => $value]);
+                            return [
+                                'name' => $key,
+                                'contents' => (string) $value  // Conversion explicite en string
+                            ];
+                        })
+                    )->values()->all()
+                ]);
+            } else {
+                $response = $client->request($request->method(), $url, [
+                        'headers' => $request->headers->all(),
+                        'json' => $request->all()
+                    ]);
+            }
+
+            // $response = $client->request($request->method(), $url, [
+            //     'headers' => $request->headers->all(),
+            //     'json' => $request->all(), //17-12
+            // ]);
 
             return response($response->getBody()->getContents(), $response->getStatusCode())
             ->withHeaders($response->getHeaders());
@@ -57,14 +95,15 @@ class APIController extends Controller
     private function validateTokenWithAuthService($token)
     {
         $client = new Client();
+        $authServiceUrl = env('AUTH_SERVICE_URL') . '/validate-token';
+
         try {
-            $response = $client->post('http://localhost:8001/api/validate-token', [
+            $response = $client->post($authServiceUrl, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $token,
                     'Accept' => 'application/json',
                 ],
             ]);
-            // dd($response);
 
             if ($response->getStatusCode() === 200) {
                 return json_decode($response->getBody()->getContents());
@@ -72,16 +111,17 @@ class APIController extends Controller
         } catch (\Exception $e) {
             return $e;
         }
-        
+
         return null;
     }
 
     private function resolveServiceUrl($service)
     {
         $services = [
-            'auth' => 'http://localhost:8001/api',
-            'api' => 'http://localhost:8002/api',
-            'cyber' => 'http://localhost:8003/api',
+            'auth' => env('AUTH_SERVICE_URL'),
+            'api' => env('API_SERVICE_URL'),
+            'cyber' => env('CYBER_SERVICE_URL'),
+            'user-service' => env('USER_SERVICE_URL')
         ];
 
         return $services[$service];
